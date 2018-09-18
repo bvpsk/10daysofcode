@@ -38,7 +38,7 @@ def find_extremes(tree):
     global last_child
     if len(tree.child) != 0:
         for ch in tree.child:
-            traverse(ch)
+            find_extremes(ch)
     else:
         last_child.append(tree)
 
@@ -106,7 +106,7 @@ class AGENT:
                     orde[j+1] = temp
         spawn = None
         for o in orde:
-            if last_child[ord_dict[o]].val not in closedSet:
+            if last_child[ord_dict[o]].val not in self.closedSet:
                 spawn = last_child[ord_dict[o]]
                 break
         if spawn == None:
@@ -115,7 +115,7 @@ class AGENT:
             self.openSet.remove(spawn.val)
             self.closedSet.append(spawn.val)
             for neighbor in cities[spawn.val].neighbors:
-                    if neighbor.i not in self.closedSet:
+                if neighbor.i not in self.closedSet:
                     neighbor.g = np.hypot(neighbor.x-cities[spawn.val].x,neighbor.y-cities[spawn.val].y)
                     neighbor.h = np.hypot(neighbor.x-cities[spawn.val].x,neighbor.y-cities[spawn.val].y)
                     neighbor.f = neighbor.g + neighbor.h
@@ -129,7 +129,7 @@ class AGENT:
         last_child = []
         find_extremes(self.tree)
         for i in last_child:
-            if i[0] == order[total_cities - 1]:
+            if i.val == order[total_cities - 1]:
                 return True
         return False
 
@@ -141,12 +141,20 @@ class AGENT:
 
 
 a = AGENT()
+a.start()
 while run:
     screen.fill(background)
     for city in cities:
         city.show()
     for road in roads:
         road.show()
+    if not a.check():
+        if not a.grow():
+            print "no solution"
+            run = False
+    else:
+        print "done"
+        run = False
     # a.connect()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
