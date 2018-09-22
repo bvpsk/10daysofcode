@@ -1,9 +1,6 @@
 import numpy as np
 import cv2
 import argparse
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 kernel_size = 4
 s = 0.84
 stride = 1
