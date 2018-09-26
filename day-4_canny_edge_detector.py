@@ -4,8 +4,8 @@ import cv2
 import imutils
 from skimage.exposure import rescale_intensity
 
-upper_threshold = 75
-lower_threshold = upper_threshold*0.35
+# upper_threshold = 75
+# lower_threshold = upper_threshold*0.35
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-i","--image",required = True)
@@ -13,6 +13,25 @@ args = vars(ap.parse_args())
 
 img = cv2.imread(args['image'],0)
 # img = imutils.resize(img,300)
+
+def otsu(img):
+    hist = np.zeros(256)
+    for_hist = img.copy().flatten()
+    for i in for_hist:
+        hist[i] += 1
+    total_pixels = img.shape[0]*img.shape[1]
+    order = np.arange(256)
+    threshold = 0
+    between_class_variance = -1
+    for t in range(1,256):
+        wb = np.sum(hist[:t])/total_pixels
+        wf = np.sum(hist[t:])/total_pixels
+        mu_b = np.sum(order[:t]*hist[:t])
+        mu_f = np.sum(order[t:]*hist[t:])
+        if between_class_variance < wb*wf*(mu_b - mu_f)**2:
+            between_class_variance = wb*wf*(mu_b - mu_f)**2
+            threshold = t
+    return threshold
 
 def convolve(output,img,kernel,stride):
     (o_h,o_w) = output.shape
@@ -29,7 +48,7 @@ def convolve(output,img,kernel,stride):
 
 # Gaussian filter script starts here.......
 gaussian_kernel_size = 3
-gaussian_s = 0.84
+gaussian_s = 1.4
 gaussian_stride = 1
 def gaussian_kernel(l = 5,s = 0.84):
     r = int(l/2)
@@ -48,17 +67,21 @@ def gaussian_blur(img,kernel):
 
 print("[INFO]Building Gaussian kernel of size {}...".format(gaussian_kernel_size))
 gaussian_kernel = gaussian_kernel(l = gaussian_kernel_size,s = gaussian_s)
-#gaussian_blur(img,kernel)
-
+print("[INFO]Applying Gaussian Blur...")
+gaussian_blur(img,np.rot90(gaussian_kernel,2))
 #   Gaussian filter finished.........
+
+upper_threshold = otsu(img)
+lower_threshold = upper_threshold*0.35
+
+#   OTSU Thresholding applied..........
+
 
 #   Sobel edge detection script starts here........
 
 sobel_kernel_x = np.array(([[-1,0,1],[-2,0,2],[-1,0,1]]),dtype = 'int')
 sobel_kernel_y = np.array(([[-1,-2,-1],[0,0,0],[1,2,1]]),dtype = 'int')
 sobel_stride = 1
-print("[INFO]Applying Gaussian Blur...")
-gaussian_blur(img,np.rot90(gaussian_kernel,2))
 grad_x = np.zeros(((img.shape[0] - sobel_kernel_x.shape[0])/sobel_stride + 1,(img.shape[1] - sobel_kernel_x.shape[1])/sobel_stride + 1))
 grad_y = np.zeros(((img.shape[0] - sobel_kernel_y.shape[0])/sobel_stride + 1,(img.shape[1] - sobel_kernel_y.shape[1])/sobel_stride + 1))
 print("[INFO]Calculating sobelX...")
@@ -120,32 +143,35 @@ for h in range(0,grad.shape[0],1):
 thresh = nonmax.copy()
 
 thresh[thresh<upper_threshold] = 0
-cv2.imshow("i",thresh)
+thresh[thresh!= 0] = 255
 
 print("[INFO]Applying Hysterisis Thresholding...")
-for h in range(0,grad.shape[0],1):
-    for w in range(0,grad.shape[1],1):
-        if thresh[h,w] != 0:
-            try:
-                key = theta[(2*h+3)/2,(2*w+3)/2]
-                if key == 0:
-                    if (theta[(2*h+3)/2,(2*w+3)/2 - 1] == key and grad[(2*h+3)/2,(2*w+3)/2 - 1] > lower_threshold) or(theta[(2*h+3)/2,(2*w+3)/2 + 1] == key and grad[(2*h+3)/2,(2*w+3)/2 + 1] > lower_threshold):
-                        thresh[(2*h+3)/2,(2*w+3)/2 - 1] = grad[(2*h+3)/2,(2*w+3)/2 - 1]
-                        thresh[(2*h+3)/2,(2*w+3)/2 + 1] = grad[(2*h+3)/2,(2*w+3)/2 + 1]
-                elif key == 1:
-                    if (theta[(2*h+3)/2 -1,(2*w+3)/2 + 1] == key and grad[(2*h+3)/2 - 1,(2*w+3)/2 + 1] > lower_threshold) or(theta[(2*h+3)/2 + 1,(2*w+3)/2 - 1] == key and grad[(2*h+3)/2 + 1,(2*w+3)/2 - 1] > lower_threshold):
-                        thresh[(2*h+3)/2 - 1,(2*w+3)/2 + 1] = grad[(2*h+3)/2 - 1,(2*w+3)/2 + 1]
-                        thresh[(2*h+3)/2 + 1,(2*w+3)/2 - 1] = grad[(2*h+3)/2 + 1,(2*w+3)/2 - 1]
-                elif key == 2:
-                    if (theta[(2*h+3)/2 -1,(2*w+3)/2] == key and grad[(2*h+3)/2 - 1,(2*w+3)/2] > lower_threshold) or(theta[(2*h+3)/2 + 1,(2*w+3)/2] == key and grad[(2*h+3)/2 + 1,(2*w+3)/2] > lower_threshold):
-                        thresh[(2*h+3)/2 - 1,(2*w+3)/2] = grad[(2*h+3)/2 - 1,(2*w+3)/2]
-                        thresh[(2*h+3)/2 + 1,(2*w+3)/2] = grad[(2*h+3)/2 + 1,(2*w+3)/2]
-                elif key == 3:
-                    if (theta[(2*h+3)/2 -1,(2*w+3)/2 - 1] == key and grad[(2*h+3)/2 - 1,(2*w+3)/2 - 1] > lower_threshold) or(theta[(2*h+3)/2 + 1,(2*w+3)/2 + 1] == key and grad[(2*h+3)/2 + 1,(2*w+3)/2 + 1] > lower_threshold):
-                        thresh[(2*h+3)/2 - 1,(2*w+3)/2 - 1] = grad[(2*h+3)/2 - 1,(2*w+3)/2 - 1]
-                        thresh[(2*h+3)/2 + 1,(2*w+3)/2 + 1] = grad[(2*h+3)/2 + 1,(2*w+3)/2 + 1]
-            except:
-                pass
+k = 1
+for _ in range(k):
+    # print(_)
+    for h in range(0,grad.shape[0],1):
+        for w in range(0,grad.shape[1],1):
+            if thresh[h,w] != 0:
+                try:
+                    key = theta[(2*h+3)/2,(2*w+3)/2]
+                    if key == 0:
+                        if (theta[(2*h+3)/2,(2*w+3)/2 - 1] == key and grad[(2*h+3)/2,(2*w+3)/2 - 1] > lower_threshold) or(theta[(2*h+3)/2,(2*w+3)/2 + 1] == key and grad[(2*h+3)/2,(2*w+3)/2 + 1] > lower_threshold):
+                            thresh[(2*h+3)/2,(2*w+3)/2 - 1] = grad[(2*h+3)/2,(2*w+3)/2 - 1]
+                            thresh[(2*h+3)/2,(2*w+3)/2 + 1] = grad[(2*h+3)/2,(2*w+3)/2 + 1]
+                    elif key == 1:
+                        if (theta[(2*h+3)/2 -1,(2*w+3)/2 + 1] == key and grad[(2*h+3)/2 - 1,(2*w+3)/2 + 1] > lower_threshold) or(theta[(2*h+3)/2 + 1,(2*w+3)/2 - 1] == key and grad[(2*h+3)/2 + 1,(2*w+3)/2 - 1] > lower_threshold):
+                            thresh[(2*h+3)/2 - 1,(2*w+3)/2 + 1] = grad[(2*h+3)/2 - 1,(2*w+3)/2 + 1]
+                            thresh[(2*h+3)/2 + 1,(2*w+3)/2 - 1] = grad[(2*h+3)/2 + 1,(2*w+3)/2 - 1]
+                    elif key == 2:
+                        if (theta[(2*h+3)/2 -1,(2*w+3)/2] == key and grad[(2*h+3)/2 - 1,(2*w+3)/2] > lower_threshold) or(theta[(2*h+3)/2 + 1,(2*w+3)/2] == key and grad[(2*h+3)/2 + 1,(2*w+3)/2] > lower_threshold):
+                            thresh[(2*h+3)/2 - 1,(2*w+3)/2] = grad[(2*h+3)/2 - 1,(2*w+3)/2]
+                            thresh[(2*h+3)/2 + 1,(2*w+3)/2] = grad[(2*h+3)/2 + 1,(2*w+3)/2]
+                    elif key == 3:
+                        if (theta[(2*h+3)/2 -1,(2*w+3)/2 - 1] == key and grad[(2*h+3)/2 - 1,(2*w+3)/2 - 1] > lower_threshold) or(theta[(2*h+3)/2 + 1,(2*w+3)/2 + 1] == key and grad[(2*h+3)/2 + 1,(2*w+3)/2 + 1] > lower_threshold):
+                            thresh[(2*h+3)/2 - 1,(2*w+3)/2 - 1] = grad[(2*h+3)/2 - 1,(2*w+3)/2 - 1]
+                            thresh[(2*h+3)/2 + 1,(2*w+3)/2 + 1] = grad[(2*h+3)/2 + 1,(2*w+3)/2 + 1]
+                except:
+                    pass
 
 
 #   Hysterisis Thresholding completed.......
