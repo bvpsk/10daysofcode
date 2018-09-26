@@ -26,7 +26,8 @@ def ifft(x):
     conj_of_fft = np.conjugate(fft_for_conj_x)
     return np.real(conj_of_fft/N)
 
-x = np.arange(2**10)
+x = np.arange(8)
+print x.shape
 f = fft(x)
 fi = ifft(f)
 
