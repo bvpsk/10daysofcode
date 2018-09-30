@@ -24,10 +24,12 @@ def otsu(img):
     threshold = 0
     between_class_variance = -1
     for t in range(1,256):
-        wb = np.sum(hist[:t])/total_pixels
-        wf = np.sum(hist[t:])/total_pixels
-        mu_b = np.sum(order[:t]*hist[:t])
-        mu_f = np.sum(order[t:]*hist[t:])
+        pcb = np.sum(hist[:t])
+        pcf = np.sum(hist[t:])
+        wb = pcb/total_pixels
+        wf = pcf/total_pixels
+        mu_b = np.sum(order[:t]*hist[:t])/float(pcb)
+        mu_f = np.sum(order[t:]*hist[t:])/float(pcf)
         if between_class_variance < wb*wf*(mu_b - mu_f)**2:
             between_class_variance = wb*wf*(mu_b - mu_f)**2
             threshold = t
@@ -48,7 +50,7 @@ def convolve(output,img,kernel,stride):
 
 # Gaussian filter script starts here.......
 gaussian_kernel_size = 3
-gaussian_s = 1.4
+gaussian_s = 0.84
 gaussian_stride = 1
 def gaussian_kernel(l = 5,s = 0.84):
     r = int(l/2)
@@ -71,7 +73,7 @@ print("[INFO]Applying Gaussian Blur...")
 gaussian_blur(img,np.rot90(gaussian_kernel,2))
 #   Gaussian filter finished.........
 
-upper_threshold = otsu(img)
+upper_threshold = min(otsu(img)*1.7,255)
 lower_threshold = upper_threshold*0.35
 
 #   OTSU Thresholding applied..........
@@ -175,7 +177,8 @@ for _ in range(k):
 
 
 #   Hysterisis Thresholding completed.......
-
+nonmax = imutils.resize(nonmax,width = 400)
+thresh = imutils.resize(thresh,width = 400)
 cv2.imshow('nonmax',nonmax)
 cv2.imshow('thresh',thresh)
 while cv2.waitKey(3) != 27:
